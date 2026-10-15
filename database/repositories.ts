@@ -234,28 +234,39 @@ function mapDebt(r: DebtRow): Debt {
 }
 
 /** Create a borrowing record plus its cash-in transaction atomically. */
-export async function createBorrowing(input: {
-  personName: string; amountMinor: number; date: string; dueDate?: string | null; notes?: string | null;
+export async function createDebt(input: {
+  personName: string;
+  originalAmountMinor: number;
+  borrowedDate: string;
+  dueDate?: string | null;
+  notes?: string | null;
+  currencyCode?: string;
 }): Promise<{ debtId: number; txId: number }> {
   const db = await getDb();
-  return db.withExclusiveTransactionAsync(async () => {
+  const out: { current: { debtId: number; txId: number } | null } = { current: null };
+  await db.withExclusiveTransactionAsync(async () => {
     const personId = await upsertPersonInner(db, input.personName);
     const now = isoNow();
     const debtRes = await db.runAsync(
       `INSERT INTO debts (person_id, original_amount_minor, borrowed_date, due_date, notes, status, created_at, updated_at)
        VALUES (?,?,?,?,?,'open',?,?)`,
-      [personId, input.amountMinor, input.date, input.dueDate ?? null, input.notes ?? null, now, now]);
+      [personId, input.originalAmountMinor, input.borrowedDate, input.dueDate ?? null, input.notes ?? null, now, now]);
     const debtId = debtRes.lastInsertRowId;
     const txRes = await db.runAsync(
       `INSERT INTO transactions
         (transaction_type, amount_minor_units, currency_code, related_person_id, description, notes,
          transaction_date, created_at, updated_at, related_debt_id)
-       VALUES ('borrowed_in', ?, 'PKR', ?, ?, ?, ?, ?, ?, ?)`,
-      [input.amountMinor, personId, `Borrowed from ${input.personName.trim()}`, input.notes ?? null,
-       input.date, now, now, debtId]);
-    return { debtId, txId: txRes.lastInsertRowId };
+       VALUES ('borrowed_in', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [input.originalAmountMinor, input.currencyCode ?? 'PKR', personId, `Borrowed from ${input.personName.trim()}`,
+       input.notes ?? null, input.borrowedDate, now, now, debtId]);
+    out.current = { debtId, txId: txRes.lastInsertRowId };
   });
+  if (!out.current) throw new Error('Failed to save borrowing');
+  return out.current;
 }
+
+/** Alias kept for older call sites. */
+export const createBorrowing = createDebt;
 
 async function upsertPersonInner(db: SQLiteDB, name: string): Promise<number> {
   const trimmed = name.trim();
@@ -274,7 +285,8 @@ export async function createRepayment(input: {
   debtId: number; amountMinor: number; date: string; notes?: string | null;
 }): Promise<{ repaymentId: number; txId: number }> {
   const db = await getDb();
-  return db.withExclusiveTransactionAsync(async () => {
+  const out: { current: { repaymentId: number; txId: number } | null } = { current: null };
+  await db.withExclusiveTransactionAsync(async () => {
     const debt = await db.getFirstSync<{ id: number; person_id: number; original_amount_minor: number }>(
       'SELECT id, person_id, original_amount_minor FROM debts WHERE id = ?', [input.debtId]);
     if (!debt) throw new Error('Borrowing record not found');
@@ -302,8 +314,10 @@ export async function createRepayment(input: {
     } else {
       await db.runAsync(`UPDATE debts SET updated_at=? WHERE id=?`, [now, input.debtId]);
     }
-    return { repaymentId: rep.lastInsertRowId, txId: tx.lastInsertRowId };
+    out.current = { repaymentId: rep.lastInsertRowId, txId: tx.lastInsertRowId };
   });
+  if (!out.current) throw new Error('Failed to save repayment');
+  return out.current;
 }
 
 export async function listDebts(status?: 'open' | 'settled'): Promise<Debt[]> {
@@ -352,14 +366,14 @@ export async function deleteRepayment(repaymentId: number): Promise<void> {
     const rep = await db.getFirstSync<{ id: number; debt_id: number }>(
       'SELECT id, debt_id FROM debt_repayments WHERE id = ?', [repaymentId]);
     if (!rep) return;
-    // Delete the linked repayment transaction precisely (one tx per repayment row).
+    // Delete the single linked repayment transaction (created together with this row).
     await db.runAsync(
       `DELETE FROM transactions WHERE related_debt_id = ? AND transaction_type='repayment_out'
-       AND transaction_date = (SELECT repayment_date FROM debt_repayments WHERE id = ?)
        AND amount_minor_units = (SELECT amount_minor_units FROM debt_repayments WHERE id = ?)
-       AND id = (SELECT MIN(id) FROM transactions WHERE related_debt_id = ? AND transaction_type='repayment_out'
-                 AND transaction_date = (SELECT repayment_date FROM debt_repayments WHERE id = ?)
-                 AND amount_minor_units = (SELECT amount_minor_units FROM debt_repayments WHERE id = ?))`,
+       AND transaction_date = (SELECT repayment_date FROM debt_repayments WHERE id = ?)
+       AND id = (SELECT MIN(t2.id) FROM transactions t2 WHERE t2.related_debt_id = ? AND t2.transaction_type='repayment_out'
+                 AND t2.amount_minor_units = (SELECT amount_minor_units FROM debt_repayments WHERE id = ?)
+                 AND t2.transaction_date = (SELECT repayment_date FROM debt_repayments WHERE id = ?))`,
       [rep.debt_id, repaymentId, repaymentId, rep.debt_id, repaymentId, repaymentId]);
     await db.runAsync('DELETE FROM debt_repayments WHERE id = ?', [repaymentId]);
     const sums = await db.getFirstSync<{ orig: number; repaid: number }>(

@@ -1,6 +1,5 @@
 // SQLite persistence layer built on expo-sqlite (async API).
 import * as SQLite from 'expo-sqlite';
-import { todayISO } from '../utils/format';
 
 export const DB_NAME = 'wallet.db';
 export const SCHEMA_VERSION = 1;
@@ -179,4 +178,9 @@ export async function getAllSettings(): Promise<Record<string, string>> {
 }
 
 export function isoNow(): string { return new Date().toISOString(); }
-export { todayISO };
+
+/** Delete the database file entirely (used by "reset all data"). */
+export async function deleteDatabaseFile(): Promise<void> {
+  await closeDb();
+  try { await SQLite.deleteDatabaseAsync(DB_NAME); } catch { /* ignore */ }
+}
