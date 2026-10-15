@@ -1,0 +1,1 @@
+{ "extends": "./tsconfig.json", "include": ["app/**/*", "components/**/*", "features/**/*", "hooks/**/*", "database/**/*", "services/**/*", "utils/**/*", "types/**/*", "tests/**/*", "index.ts"] }

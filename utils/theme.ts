@@ -43,3 +43,9 @@ export const font: Record<string, TextStyle> = {
 };
 
 export const radii = 0; // Mandatory: no rounded corners anywhere.
+
+// Status-bar contrast helper: on the warm off-white background, white system
+// status-bar icons (battery / time) are invisible, so every screen paints a
+// dark forest-green band behind them and uses light ("inverted") icons.
+export const STATUS_BAND_LIGHT = '#376B4B'; // top-band color for tab screens
+export const STATUS_BAR_STYLE = 'light' as const; // light icons over dark band
