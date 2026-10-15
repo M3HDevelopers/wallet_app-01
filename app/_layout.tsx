@@ -14,7 +14,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AppProvider>
           <AuthProvider>
-            <StatusBar style="dark" backgroundColor={colors.background} />
+            <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: 'slide_from_right' }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="add-money" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

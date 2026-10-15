@@ -10,7 +10,7 @@ import { TransactionRow } from '../../components/TransactionRow';
 import { AnimatedAmount } from '../../components/AnimatedAmount';
 import { useApp } from '../../hooks/useAppContext';
 import { useLedger } from '../../hooks/useLedger';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../../features/auth/AuthContext';
 import { colors, font, spacing } from '../../utils/theme';
 import { currentMonthRange, greetingForNow, todayISO } from '../../utils/format';
 import { periodSummary } from '../../utils/ledger';
@@ -65,7 +65,7 @@ export default function HomeScreen() {
             value={totals.balanceMinor}
             hidden={hidden}
             format={(v) => fmtMoney(v)}
-            style={[font.balance, { marginTop: spacing.sm }, totals.balanceMinor < 0 ? { color: colors.expense } : undefined]}
+            style={[font.balance, { marginTop: spacing.sm }, totals.balanceMinor < 0 ? { color: colors.expense } : undefined] as any}
           />
           {!setupDismissed && hasAny !== undefined && !loading ? (
             <Pressable onPress={() => router.push('/setup-balance')} style={{ marginTop: spacing.md }}>

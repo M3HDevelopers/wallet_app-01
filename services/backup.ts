@@ -115,6 +115,15 @@ export function validateBackup(obj: unknown): BackupFile {
  * transaction so a failure leaves existing data untouched. Settings keys are
  * merged (backup values win) but auth-related state is never touched here.
  */
+/** Safe cast of an unknown JSON value to a bindable SQLite parameter type. */
+const sv = (v: unknown): string => String(v);
+const nv = (v: unknown): number => Number(v);
+const nnv = (v: unknown, fallback?: number): number | null => {
+  if (v === undefined || v === null) return fallback ?? null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback ?? null;
+};
+
 export async function restoreBackup(backup: BackupFile): Promise<void> {
   const validated = validateBackup(JSON.parse(JSON.stringify(backup)));
   const db = await getDb();
@@ -123,33 +132,33 @@ export async function restoreBackup(backup: BackupFile): Promise<void> {
     for (const c of validated.data.categories as Record<string, unknown>[]) {
       await db.runAsync(
         'INSERT INTO categories (id,name,kind,is_default,created_at,updated_at) VALUES (?,?,?,?,?,?)',
-        [c.id, c.name, c.kind, c.is_default ?? 0, c.created_at ?? isoNow(), c.updated_at ?? isoNow()]);
+        [nv(c.id), sv(c.name), sv(c.kind), c.is_default != null ? nv(c.is_default) : 0, sv(c.created_at ?? isoNow()), sv(c.updated_at ?? isoNow())]);
     }
     for (const p of validated.data.people as Record<string, unknown>[]) {
       await db.runAsync(
         'INSERT INTO people (id,name,notes,created_at,updated_at) VALUES (?,?,?,?,?)',
-        [p.id, p.name, p.notes ?? null, p.created_at ?? isoNow(), p.updated_at ?? isoNow()]);
+        [nv(p.id), sv(p.name), p.notes != null ? sv(p.notes) : null, sv(p.created_at ?? isoNow()), sv(p.updated_at ?? isoNow())]);
     }
     for (const d of validated.data.debts as Record<string, unknown>[]) {
       await db.runAsync(
         `INSERT INTO debts (id,person_id,original_amount_minor,borrowed_date,due_date,notes,status,created_at,updated_at)
          VALUES (?,?,?,?,?,?,?,?,?)`,
-        [d.id, d.person_id, d.original_amount_minor, d.borrowed_date, d.due_date ?? null,
-         d.notes ?? null, d.status ?? 'open', d.created_at ?? isoNow(), d.updated_at ?? isoNow()]);
+        [nv(d.id), nnv(d.person_id), nv(d.original_amount_minor), sv(d.borrowed_date), d.due_date != null ? sv(d.due_date) : null,
+         d.notes != null ? sv(d.notes) : null, sv(d.status ?? 'open'), sv(d.created_at ?? isoNow()), sv(d.updated_at ?? isoNow())]);
     }
     for (const r of validated.data.debt_repayments as Record<string, unknown>[]) {
       await db.runAsync(
         'INSERT INTO debt_repayments (id,debt_id,amount_minor_units,repayment_date,notes,created_at) VALUES (?,?,?,?,?,?)',
-        [r.id, r.debt_id, r.amount_minor_units, r.repayment_date, r.notes ?? null, r.created_at ?? isoNow()]);
+        [nv(r.id), nv(r.debt_id), nv(r.amount_minor_units), sv(r.repayment_date), r.notes != null ? sv(r.notes) : null, sv(r.created_at ?? isoNow())]);
     }
     for (const t of validated.data.transactions as Record<string, unknown>[]) {
       await db.runAsync(
         `INSERT INTO transactions (id,transaction_type,amount_minor_units,currency_code,category_id,
           related_person_id,description,notes,transaction_date,created_at,updated_at,related_debt_id)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [t.id, t.transaction_type, t.amount_minor_units, t.currency_code ?? 'PKR', t.category_id ?? null,
-         t.related_person_id ?? null, t.description ?? '', t.notes ?? null, t.transaction_date,
-         t.created_at ?? isoNow(), t.updated_at ?? isoNow(), t.related_debt_id ?? null]);
+        [nv(t.id), sv(t.transaction_type), nv(t.amount_minor_units), sv(t.currency_code ?? 'PKR'), nnv(t.category_id),
+         nnv(t.related_person_id), t.description != null ? sv(t.description) : '', t.notes != null ? sv(t.notes) : null, sv(t.transaction_date),
+         sv(t.created_at ?? isoNow()), sv(t.updated_at ?? isoNow()), nnv(t.related_debt_id)]);
     }
     // Reset sqlite sequence so future inserts don't collide with restored ids.
     await db.execAsync(`UPDATE sqlite_sequence SET seq =

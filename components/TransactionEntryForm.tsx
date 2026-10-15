@@ -134,7 +134,7 @@ export function TransactionEntryForm({ presetTypes, initialType, successMessage 
 
           <Field label="Notes" hint="Optional">
             <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Anything to remember"
-              style={[styles.notes, { borderColor: colors.border, borderWidth: 1, padding: spacing.md, minHeight: 84, fontSize: 15, color: colors.text, textAlignVertical: 'top', backgroundColor: colors.surface }]} />
+              style={[{ borderColor: colors.border, borderWidth: 1, padding: spacing.md, minHeight: 84, fontSize: 15, color: colors.text, textAlignVertical: 'top', backgroundColor: colors.surface }]} />
           </Field>
 
           <Button label="Save Transaction" onPress={save} disabled={!valid} loading={busy} testID="tx-save" />

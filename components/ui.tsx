@@ -256,11 +256,12 @@ interface ConfirmProps {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
+  busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ConfirmDialog({ visible, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger, onConfirm, onCancel }: ConfirmProps) {
+export function ConfirmDialog({ visible, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger, busy, onConfirm, onCancel }: ConfirmProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onCancel}>
@@ -272,7 +273,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel = 'Confirm
               <Button label={cancelLabel} variant="secondary" onPress={onCancel} />
             </View>
             <View style={{ flex: 1 }}>
-              <Button label={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} />
+              <Button label={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} loading={busy} />
             </View>
           </View>
         </Pressable>
