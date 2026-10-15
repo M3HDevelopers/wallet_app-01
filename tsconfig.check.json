@@ -1,1 +1,18 @@
-{ "extends": "./tsconfig.json", "include": ["app/**/*", "components/**/*", "features/**/*", "hooks/**/*", "database/**/*", "services/**/*", "utils/**/*", "types/**/*", "tests/**/*", "index.ts"] }
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "app/**/*",
+    "components/**/*",
+    "features/**/*",
+    "hooks/**/*",
+    "database/**/*",
+    "services/**/*",
+    "utils/**/*",
+    "types/**/*",
+    "tests/**/*",
+    "index.ts"
+  ]
+}
